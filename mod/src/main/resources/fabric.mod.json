@@ -3,7 +3,7 @@
   "id": "guildwartracker",
   "version": "${version}",
   "name": "Guild War Tracker",
-  "description": "Wynncraft 길드 전쟁 참여/승리/패배/이탈 기록을 Cloudflare Worker로 전송합니다.",
+  "description": "Records Wynncraft guild war participation, wins, losses and leaves to a Cloudflare Worker.",
   "authors": [],
   "license": "MIT",
   "environment": "client",
