@@ -83,7 +83,7 @@ public final class GuildWarTrackerClient implements ClientModInitializer {
     static void feedback(String msg) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.gui == null) return;
-        mc.gui.getChat().addMessage(Component.literal("[GWT] ").withStyle(ChatFormatting.GOLD)
+        mc.gui.getChat().addMessage(Component.literal("[Guild War] ").withStyle(ChatFormatting.GOLD)
                 .append(Component.literal(msg).withStyle(ChatFormatting.WHITE)));
     }
 }
