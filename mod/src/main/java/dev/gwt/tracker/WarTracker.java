@@ -16,8 +16,8 @@ import java.util.regex.PatternSyntaxException;
  */
 public final class WarTracker {
 
-    public enum Source { CHAT, TITLE, SUBTITLE, ACTIONBAR }
-    public enum Kind { START, WIN, LOSS }
+    public enum Source { CHAT, TITLE, SUBTITLE, ACTIONBAR, BOSSBAR }
+    public enum Kind { QUEUE, START, WIN, LOSS, TERRITORY }
 
     public record Match(Kind kind, String territory, String pattern) {}
 
@@ -26,7 +26,7 @@ public final class WarTracker {
         void post(String path, Map<String, Object> body);
     }
 
-    private record Compiled(List<Pattern> start, List<Pattern> win, List<Pattern> loss, List<String> errors) {}
+    private record Compiled(List<Pattern> queue, List<Pattern> start, List<Pattern> win, List<Pattern> loss, List<Pattern> boss, List<String> errors) {}
 
     public static final class ActiveWar {
         public final String id;
@@ -46,6 +46,13 @@ public final class WarTracker {
     private volatile GwtConfig config;
     private volatile Compiled compiled;
     private ActiveWar active; // 메인 스레드에서만 접근
+    private String queuedTerritory; // 대기열 메시지에서 기억한 영토
+    private long queuedAt;
+    private static final long QUEUE_MEMORY_MS = 10 * 60_000L;
+    private String bossTerritory; // 보스바에서 읽은 영토 (전장 안에서만 보임)
+    private long bossAt;
+    private static final long BOSS_MEMORY_MS = 2 * 60_000L;
+    private static final long BOSS_FIX_WINDOW_MS = 5 * 60_000L;
 
     public WarTracker(GwtConfig config, Sink sink) {
         this.sink = sink;
@@ -55,9 +62,11 @@ public final class WarTracker {
     public void reload(GwtConfig cfg) {
         List<String> errors = new ArrayList<>();
         Compiled c = new Compiled(
+                compile(cfg.queuePatterns, "queuePatterns", errors),
                 compile(cfg.startPatterns, "startPatterns", errors),
                 compile(cfg.winPatterns, "winPatterns", errors),
                 compile(cfg.lossPatterns, "lossPatterns", errors),
+                compile(cfg.bossbarPatterns, "bossbarPatterns", errors),
                 List.copyOf(errors));
         for (String e : errors) GwtLog.warn(e);
         this.config = cfg;
@@ -82,12 +91,23 @@ public final class WarTracker {
         return out;
     }
 
-    /** 결과 메시지를 먼저 검사한다 (시작 패턴이 넓게 잡혀도 승패가 우선). */
+    private Match matchChat(String text) {
+        Compiled c = compiled;
+        Match m = find(text, c.win(), Kind.WIN);
+        if (m == null) m = find(text, c.loss(), Kind.LOSS);
+        if (m == null) m = find(text, c.start(), Kind.START);
+        if (m == null) m = find(text, c.queue(), Kind.QUEUE);
+        return m;
+    }
+
+    /** /gwt test용: 모든 패턴 검사. 결과 메시지를 먼저 본다. */
     public Match match(String text) {
         Compiled c = compiled;
         Match m = find(text, c.win(), Kind.WIN);
         if (m == null) m = find(text, c.loss(), Kind.LOSS);
         if (m == null) m = find(text, c.start(), Kind.START);
+        if (m == null) m = find(text, c.queue(), Kind.QUEUE);
+        if (m == null) m = find(text, c.boss(), Kind.TERRITORY);
         return m;
     }
 
@@ -123,12 +143,46 @@ public final class WarTracker {
             active = null;
         }
 
-        Match m = match(text);
+        // 보스바는 보스바 패턴으로만, 채팅 등은 채팅 패턴으로만 검사
+        Match m = src == Source.BOSSBAR ? find(text, compiled.boss(), Kind.TERRITORY) : matchChat(text);
         if (m == null) return null;
         String uuid = playerUuid.toString();
 
         switch (m.kind()) {
+            case TERRITORY -> {
+                if (m.territory() == null) return null;
+                bossTerritory = m.territory();
+                bossAt = now;
+                // 전투 시작 직후 보스바로 영토가 확인되면, 대기열로 추정한 영토를 바로잡음
+                if (active != null && active.playerUuid.equals(uuid)
+                        && now - active.startedAt <= BOSS_FIX_WINDOW_MS
+                        && !sameTerritory(active.territory, m.territory())) {
+                    active = new ActiveWar(active.id, m.territory(), active.startedAt, active.playerUuid);
+                    Map<String, Object> body = new LinkedHashMap<>();
+                    body.put("id", active.id);
+                    body.put("uuid", uuid);
+                    body.put("territory", active.territory);
+                    sink.post("/api/war/territory", body);
+                    return "전쟁 영토 확인: " + active.territory;
+                }
+                return null;
+            }
+            case QUEUE -> {
+                queuedTerritory = m.territory();
+                queuedAt = now;
+                return null;
+            }
             case START -> {
+                // 영토 우선순위: 시작 메시지 자체 > 최근 보스바 > 대기열 메시지
+                String territory = m.territory();
+                if (territory == null && bossTerritory != null && now - bossAt <= BOSS_MEMORY_MS) {
+                    territory = bossTerritory;
+                }
+                if (territory == null && queuedTerritory != null && now - queuedAt <= QUEUE_MEMORY_MS) {
+                    territory = queuedTerritory;
+                }
+                queuedTerritory = null;
+                m = new Match(Kind.START, territory, m.pattern());
                 if (active != null
                         && active.playerUuid.equals(uuid)
                         && sameTerritory(active.territory, m.territory())

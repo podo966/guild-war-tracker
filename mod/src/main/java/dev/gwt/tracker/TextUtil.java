@@ -38,6 +38,9 @@ public final class TextUtil {
     }
 
     private static boolean isPrivateUse(int cp) {
+        // Wynncraft는 PUA 외에 미할당 평면(U+Cxxxx, U+Dxxxx 등)도 폰트 아이콘으로 씀
+        int type = Character.getType(cp);
+        if (type == Character.UNASSIGNED || type == Character.SURROGATE) return true;
         return (cp >= 0xE000 && cp <= 0xF8FF)
                 || (cp >= 0xF0000 && cp <= 0xFFFFD)
                 || (cp >= 0x100000 && cp <= 0x10FFFD);

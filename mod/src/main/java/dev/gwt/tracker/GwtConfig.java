@@ -18,7 +18,7 @@ public final class GwtConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
 
     public String _readme = "정규식은 Java 문법. (?<territory>...) 이름 그룹이 있으면 영토 이름으로 저장됨. "
-            + "기본 패턴은 추정값이므로 /gwt capture on 으로 실제 메시지를 확인한 뒤 수정하고 /gwt reload 하세요.";
+            + "메시지가 바뀌면 /gwt capture on 으로 실제 메시지를 확인한 뒤 수정하고 /gwt reload 하세요.";
 
     /** 기본 Worker 주소. 설정 파일에서 비워 두면 이 주소를 사용 */
     public static final String DEFAULT_SERVER_URL = "https://guild-war-tracker.wartracker.workers.dev";
@@ -44,23 +44,44 @@ public final class GwtConfig {
     /** 시작 후 이 시간 동안 결과가 없으면 이탈 처리 (서버도 같은 규칙 적용) */
     public int warTimeoutMinutes = 30;
 
-    /** 전쟁 참여(시작)로 볼 메시지 */
-    public List<String> startPatterns = new ArrayList<>(List.of(
-            "The war for (?<territory>.+?) will start"
-    ));
+    /** 설정 형식 버전. 낮으면 감지 패턴을 새 기본값으로 교체 */
+    public static final int CURRENT_VERSION = 3;
+    public int configVersion = 0; // 파일에 없으면 0 → 예전 설정으로 보고 패턴 갱신
+
+    /** 전쟁 대기열 메시지: 기록하지 않고 영토 이름만 기억해 둠 */
+    public List<String> queuePatterns = defaultQueue();
+    /** 전쟁 참여(전투 시작)로 볼 메시지. territory 그룹이 없으면 대기열에서 기억한 영토를 씀 */
+    public List<String> startPatterns = defaultStart();
     /** 승리로 볼 메시지 */
-    public List<String> winPatterns = new ArrayList<>(List.of(
-            "You have taken control of (?<territory>.+?)(?: from .*)?[!.]?$"
-    ));
+    public List<String> winPatterns = defaultWin();
     /** 패배로 볼 메시지 */
-    public List<String> lossPatterns = new ArrayList<>(List.of(
-            "Your guild has lost the war for (?<territory>.+?)[!.]?$"
-    ));
+    public List<String> lossPatterns = defaultLoss();
+    /** 전장 보스바에서 영토 이름을 읽는 패턴 (가장 정확한 영토 정보) */
+    public List<String> bossbarPatterns = defaultBoss();
+
+    // 2026-11-16 실제 Wynncraft 로그 기준
+    static List<String> defaultQueue() {
+        return new ArrayList<>(List.of("^The war for (?<territory>.+?) will start in "));
+    }
+    static List<String> defaultStart() {
+        return new ArrayList<>(List.of("^The battle has begun!?$"));
+    }
+    static List<String> defaultWin() {
+        return new ArrayList<>(List.of("^You have taken control of (?<territory>.+?) from "));
+    }
+    static List<String> defaultBoss() {
+        // 추정값: "[ABC] Almuj Tower - ❤ ..." 형태. 실제 보스바 문구를 캡처해서 확인 필요
+        return new ArrayList<>(List.of("^(?:\\[[A-Za-z]{2,4}\\] )?(?<territory>.+?) Tower\\b"));
+    }
+    static List<String> defaultLoss() {
+        return new ArrayList<>(List.of("^Your guild has lost the war for (?<territory>.+?)[.!]?$"));
+    }
 
     public static GwtConfig load(Path file) {
         try {
             if (Files.notExists(file)) {
                 GwtConfig def = new GwtConfig();
+                def.configVersion = CURRENT_VERSION;
                 def.save(file);
                 GwtLog.info("기본 설정 파일 생성: " + file);
                 return def;
@@ -68,6 +89,19 @@ public final class GwtConfig {
             String json = Files.readString(file, StandardCharsets.UTF_8);
             GwtConfig cfg = GSON.fromJson(json, GwtConfig.class);
             if (cfg == null) cfg = new GwtConfig();
+            if (cfg.configVersion < CURRENT_VERSION) {
+                // 예전 추정 패턴을 실제 로그 기반 패턴으로 교체 (서버 주소 등 다른 값은 유지)
+                cfg.queuePatterns = defaultQueue();
+                cfg.startPatterns = defaultStart();
+                cfg.winPatterns = defaultWin();
+                cfg.lossPatterns = defaultLoss();
+                cfg.bossbarPatterns = defaultBoss();
+                cfg.configVersion = CURRENT_VERSION;
+                cfg.normalize();
+                cfg.save(file);
+                GwtLog.info("감지 패턴을 새 기본값으로 업데이트했습니다.");
+                return cfg;
+            }
             cfg.normalize();
             return cfg;
         } catch (Exception e) {
@@ -90,9 +124,11 @@ public final class GwtConfig {
         apiKey = apiKey.trim();
         if (guildNameOverride == null) guildNameOverride = "";
         guildNameOverride = guildNameOverride.trim();
+        if (queuePatterns == null) queuePatterns = new ArrayList<>();
         if (startPatterns == null) startPatterns = new ArrayList<>();
         if (winPatterns == null) winPatterns = new ArrayList<>();
         if (lossPatterns == null) lossPatterns = new ArrayList<>();
+        if (bossbarPatterns == null) bossbarPatterns = new ArrayList<>();
         if (startDedupSeconds < 0) startDedupSeconds = 0;
         if (warTimeoutMinutes <= 0) warTimeoutMinutes = 30;
     }
