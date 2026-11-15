@@ -45,7 +45,7 @@ public final class GwtConfig {
     public int warTimeoutMinutes = 30;
 
     /** 설정 형식 버전. 낮으면 감지 패턴을 새 기본값으로 교체 */
-    public static final int CURRENT_VERSION = 3;
+    public static final int CURRENT_VERSION = 4;
     public int configVersion = 0; // 파일에 없으면 0 → 예전 설정으로 보고 패턴 갱신
 
     /** 전쟁 대기열 메시지: 기록하지 않고 영토 이름만 기억해 둠 */
@@ -70,8 +70,9 @@ public final class GwtConfig {
         return new ArrayList<>(List.of("^You have taken control of (?<territory>.+?) from "));
     }
     static List<String> defaultBoss() {
-        // 추정값: "[ABC] Almuj Tower - ❤ ..." 형태. 실제 보스바 문구를 캡처해서 확인 필요
-        return new ArrayList<>(List.of("^(?:\\[[A-Za-z]{2,4}\\] )?(?<territory>.+?) Tower\\b"));
+        // 실제 예: "[ETKW] Entrance to Almuj Tower - ❤ 390000 (10.0%) - ☠ 1300-1949 (0.5x)"
+        // " Tower - ❤"까지 요구해서 이름에 Tower가 들어간 몹 보스바와 구분
+        return new ArrayList<>(List.of("^(?:\\[[A-Za-z0-9]{2,4}\\] )?(?<territory>.+?) Tower - ❤"));
     }
     static List<String> defaultLoss() {
         return new ArrayList<>(List.of("^Your guild has lost the war for (?<territory>.+?)[.!]?$"));
