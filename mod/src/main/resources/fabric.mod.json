@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "guildwartracker",
+  "version": "${version}",
+  "name": "Guild War Tracker",
+  "description": "Wynncraft 길드 전쟁 참여/승리/패배/이탈 기록을 Cloudflare Worker로 전송합니다.",
+  "authors": [],
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["dev.gwt.tracker.GuildWarTrackerClient"]
+  },
+  "mixins": ["guildwartracker.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.18.0",
+    "minecraft": "~1.21.11",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}

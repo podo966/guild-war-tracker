@@ -1,0 +1,1 @@
+{"type":"module","private":true,"name":"guild-war-tracker","scripts":{"test":"node test/run.mjs","deploy":"wrangler deploy"}}

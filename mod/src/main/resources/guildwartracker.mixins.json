@@ -1,0 +1,10 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "dev.gwt.tracker.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": ["ConnectionMixin"],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

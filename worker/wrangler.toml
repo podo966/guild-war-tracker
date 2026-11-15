@@ -1,0 +1,17 @@
+name = "guild-war-tracker"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+
+# 10분마다 결과 없이 30분 지난 전쟁을 '이탈'로 확정 (조회할 때도 같은 처리를 함)
+[triggers]
+crons = ["*/10 * * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "guild-war-tracker"
+database_id = "여기에_D1_데이터베이스_ID"
+
+# 비밀값은 여기 적지 말고 명령어로 등록:
+#   npx wrangler secret put API_KEY          (모드 설정의 apiKey와 같은 값)
+#   npx wrangler secret put WYNN_API_TOKEN   (선택: Wynncraft API 토큰)
+#   npx wrangler secret put VIEW_KEY         (선택: 조회 페이지에 비밀번호를 걸고 싶을 때)
