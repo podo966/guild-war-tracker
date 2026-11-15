@@ -85,7 +85,7 @@ public final class WarTracker {
             try {
                 out.add(Pattern.compile(p));
             } catch (PatternSyntaxException e) {
-                errors.add(name + "[" + i + "] 정규식 오류: " + e.getDescription());
+                errors.add(name + "[" + i + "] invalid regex: " + e.getDescription());
             }
         }
         return out;
@@ -139,7 +139,7 @@ public final class WarTracker {
         long timeoutMs = cfg.warTimeoutMinutes * 60_000L;
 
         if (active != null && now - active.startedAt > timeoutMs) {
-            GwtLog.info("전쟁 결과 없이 " + cfg.warTimeoutMinutes + "분 경과: " + active.territory + " (서버에서 이탈 처리)");
+            GwtLog.info("No result after " + cfg.warTimeoutMinutes + " min: " + active.territory + " (server marks it as left)");
             active = null;
         }
 
@@ -163,7 +163,8 @@ public final class WarTracker {
                     body.put("uuid", uuid);
                     body.put("territory", active.territory);
                     sink.post("/api/war/territory", body);
-                    return "전쟁 영토 확인: " + active.territory;
+                    GwtLog.info("War territory corrected from boss bar: " + active.territory);
+                    return null; // 채팅 알림 없음 (참여/승리/패배만 표시)
                 }
                 return null;
             }
@@ -189,7 +190,6 @@ public final class WarTracker {
                         && now - active.startedAt < cfg.startDedupSeconds * 1000L) {
                     return null; // 같은 전쟁의 반복 메시지
                 }
-                String previous = active != null ? active.territory : null;
                 ActiveWar war = new ActiveWar(UUID.randomUUID().toString(), m.territory(), now, uuid);
                 active = war;
 
@@ -202,10 +202,8 @@ public final class WarTracker {
                 if (!cfg.guildNameOverride.isEmpty()) body.put("guild", cfg.guildNameOverride);
                 sink.post("/api/war/start", body);
 
-                String t = war.territory != null ? war.territory : "알 수 없는 영토";
-                return previous != null
-                        ? "전쟁 참여 기록: " + t + " (이전 전쟁은 이탈 처리)"
-                        : "전쟁 참여 기록: " + t;
+                String t = war.territory != null ? war.territory : "Unknown territory";
+                return "War joined: " + t;
             }
             case WIN, LOSS -> {
                 if (active == null) return null; // 내가 참여하지 않은 전쟁 (길드 알림 등)
@@ -224,8 +222,8 @@ public final class WarTracker {
                 body.put("endedAt", now);
                 sink.post("/api/war/end", body);
 
-                String t = war.territory != null ? war.territory : "알 수 없는 영토";
-                return (m.kind() == Kind.WIN ? "전쟁 승리 기록: " : "전쟁 패배 기록: ") + t;
+                String t = war.territory != null ? war.territory : "Unknown territory";
+                return (m.kind() == Kind.WIN ? "War won: " : "War lost: ") + t;
             }
         }
         return null;

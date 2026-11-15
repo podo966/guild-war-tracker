@@ -17,8 +17,9 @@ import java.util.List;
 public final class GwtConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
 
-    public String _readme = "정규식은 Java 문법. (?<territory>...) 이름 그룹이 있으면 영토 이름으로 저장됨. "
-            + "메시지가 바뀌면 /gwt capture on 으로 실제 메시지를 확인한 뒤 수정하고 /gwt reload 하세요.";
+    public String _readme = "Patterns are Java regex; a (?<territory>...) group is saved as the territory name. "
+            + "Set captureMessages to true to log received messages to guildwartracker-capture.log. "
+            + "Changes apply after restarting the game.";
 
     /** 기본 Worker 주소. 설정 파일에서 비워 두면 이 주소를 사용 */
     public static final String DEFAULT_SERVER_URL = "https://guild-war-tracker.wartracker.workers.dev";
@@ -32,8 +33,10 @@ public final class GwtConfig {
 
     /** Wynncraft 서버에 접속했을 때만 감지 */
     public boolean onlyOnWynncraft = true;
-    /** 기록될 때 채팅창에 알림 표시 */
+    /** 기록될 때 채팅창에 알림 표시 (참여/승리/패배) */
     public boolean chatFeedback = true;
+    /** true면 받은 채팅·타이틀·보스바를 guildwartracker-capture.log에 기록 (패턴 점검용) */
+    public boolean captureMessages = false;
     /** 액션바 메시지도 정규식 검사 대상에 포함 (보통 필요 없음) */
     public boolean matchActionbar = false;
     /** 캡처 모드에서 액션바도 파일에 기록 (매우 많으니 기본 끔) */
@@ -84,7 +87,7 @@ public final class GwtConfig {
                 GwtConfig def = new GwtConfig();
                 def.configVersion = CURRENT_VERSION;
                 def.save(file);
-                GwtLog.info("기본 설정 파일 생성: " + file);
+                GwtLog.info("Created default config: " + file);
                 return def;
             }
             String json = Files.readString(file, StandardCharsets.UTF_8);
@@ -100,13 +103,13 @@ public final class GwtConfig {
                 cfg.configVersion = CURRENT_VERSION;
                 cfg.normalize();
                 cfg.save(file);
-                GwtLog.info("감지 패턴을 새 기본값으로 업데이트했습니다.");
+                GwtLog.info("Detection patterns updated to new defaults.");
                 return cfg;
             }
             cfg.normalize();
             return cfg;
         } catch (Exception e) {
-            GwtLog.error("설정 파일을 읽지 못했습니다 (기본값 사용, 파일은 그대로 둠): " + e);
+            GwtLog.error("Failed to read config (using defaults, file left untouched): " + e);
             return new GwtConfig();
         }
     }

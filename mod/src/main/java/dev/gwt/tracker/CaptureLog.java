@@ -29,7 +29,7 @@ public final class CaptureLog {
 
     public void setEnabled(boolean on) {
         enabled = on;
-        write(null, on ? "===== 캡처 시작 =====" : "===== 캡처 종료 =====", System.currentTimeMillis(), true);
+        write(null, on ? "===== capture started =====" : "===== capture stopped =====", System.currentTimeMillis(), true);
     }
 
     public void write(WarTracker.Source src, String text, long ts) {
@@ -45,7 +45,7 @@ public final class CaptureLog {
             Files.writeString(file, line, StandardCharsets.UTF_8,
                     StandardOpenOption.CREATE, StandardOpenOption.APPEND);
         } catch (Exception e) {
-            GwtLog.error("캡처 파일 기록 실패: " + e);
+            GwtLog.error("Failed to write capture log: " + e);
         }
     }
 }

@@ -62,7 +62,7 @@ public final class Uploader implements WarTracker.Sink {
     private long backoffMs = MIN_BACKOFF_MS;
 
     private final AtomicInteger pending = new AtomicInteger();
-    private volatile String lastStatus = "아직 전송 없음";
+    private volatile String lastStatus = "nothing sent yet";
 
     public Uploader(Path queueFile, Supplier<GwtConfig> config) {
         this.queueFile = queueFile;
@@ -110,12 +110,12 @@ public final class Uploader implements WarTracker.Sink {
         while (!queue.isEmpty()) {
             GwtConfig cfg = config.get();
             if (cfg.serverUrl.isEmpty()) {
-                lastStatus = "서버 주소 미설정 - " + queue.size() + "건 보관 중 (/gwt seturl)";
+                lastStatus = "server URL not set - " + queue.size() + " event(s) kept";
                 return;
             }
             Event ev = queue.peekFirst();
             if (System.currentTimeMillis() - ev.createdAt > MAX_AGE_MS) {
-                GwtLog.warn("7일 넘게 전송하지 못한 이벤트 폐기: " + ev.path);
+                GwtLog.warn("Dropping event older than 7 days: " + ev.path);
                 removeHead();
                 continue;
             }
@@ -135,26 +135,26 @@ public final class Uploader implements WarTracker.Sink {
                 status = res.statusCode();
                 body = res.body();
             } catch (Exception e) {
-                lastStatus = "전송 실패 (네트워크): " + e.getClass().getSimpleName() + " - " + queue.size() + "건 대기";
+                lastStatus = "send failed (network): " + e.getClass().getSimpleName() + " - " + queue.size() + " pending";
                 scheduleRetry();
                 return;
             }
 
             if (status >= 200 && status < 300) {
-                lastStatus = "전송 성공 (" + ev.path + ")";
+                lastStatus = "sent (" + ev.path + ")";
                 backoffMs = MIN_BACKOFF_MS;
                 removeHead();
             } else if (status == 401 || status == 403) {
-                // 키가 틀린 경우: 버리지 않고 보관. 설정 수정 후 /gwt flush
-                lastStatus = "인증 실패 (" + status + ") - 서버에 API_KEY가 있으면 /gwt setkey 후 /gwt flush";
+                // 키가 틀린 경우: 버리지 않고 보관. 설정의 apiKey 수정 후 게임 재시작
+                lastStatus = "auth failed (" + status + ") - check apiKey in config and restart";
                 GwtLog.warn(lastStatus);
                 return;
             } else if (status >= 400 && status < 500 && status != 408 && status != 429) {
-                lastStatus = "서버가 거부함 (" + status + "): " + truncate(body);
-                GwtLog.warn(lastStatus + " / 이벤트 폐기: " + ev.json);
+                lastStatus = "rejected by server (" + status + "): " + truncate(body);
+                GwtLog.warn(lastStatus + " / dropped event: " + ev.json);
                 removeHead();
             } else {
-                lastStatus = "서버 오류 (" + status + ") - " + queue.size() + "건 대기";
+                lastStatus = "server error (" + status + ") - " + queue.size() + " pending";
                 scheduleRetry();
                 return;
             }
@@ -189,10 +189,10 @@ public final class Uploader implements WarTracker.Sink {
                     }
                 }
                 pending.set(queue.size());
-                if (!queue.isEmpty()) GwtLog.info("미전송 이벤트 " + queue.size() + "건 불러옴");
+                if (!queue.isEmpty()) GwtLog.info("Loaded " + queue.size() + " unsent event(s)");
             }
         } catch (Exception e) {
-            GwtLog.error("전송 대기열 파일을 읽지 못했습니다: " + e);
+            GwtLog.error("Failed to read upload queue: " + e);
         }
     }
 
@@ -203,7 +203,7 @@ public final class Uploader implements WarTracker.Sink {
             Files.writeString(tmp, GSON.toJson(new ArrayList<>(queue)), StandardCharsets.UTF_8);
             Files.move(tmp, queueFile, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
         } catch (Exception e) {
-            GwtLog.error("전송 대기열 저장 실패: " + e);
+            GwtLog.error("Failed to save upload queue: " + e);
         }
     }
 

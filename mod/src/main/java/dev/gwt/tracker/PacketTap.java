@@ -57,7 +57,7 @@ public final class PacketTap {
                 dispatch(WarTracker.Source.ACTIONBAR, p.text());
             }
         } catch (Throwable t) {
-            GwtLog.error("패킷 처리 중 오류: " + t);
+            GwtLog.error("Error while reading packet: " + t);
         }
     }
 
