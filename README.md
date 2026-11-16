@@ -28,17 +28,6 @@ A lightweight client-side Fabric mod for **Wynncraft** that records the guild wa
   - Filters for player, guild, result and period (today / 7 days / 30 days / all time)
   - Selectable time zone (local, KST, JST, Germany, US, UTC, …)
 
-## How results are decided
-
-| Result | Rule |
-|---|---|
-| **Joined** | `The battle has begun!` is received. The territory comes from the tower boss bar, or from `The war for … will start` if no boss bar was seen. |
-| **Win** | `You have taken control of <territory> from …` |
-| **Loss** | `Your guild has lost the war for <territory>.` |
-| **Left** | No result within **30 minutes** of joining, **or** you joined another war before this one ended. |
-
-Queueing for a war without the battle actually starting (for example, a territory on cooldown) is **not** counted.
-
 ## Installation
 
 1. Install **Fabric Loader** for **Minecraft 1.21.11** ([installer](https://fabricmc.net/use/installer/)).
